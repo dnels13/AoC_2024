@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+ACCEPTABLE_RANGE = 3
+
 input_arr = File.read('inputs/day2.txt').split("\n")
 
 count_of_safe_reports = 0
@@ -12,7 +14,7 @@ def safe_report?(report)
   sort_direction = report[0] - report[1] <=> 0 # negative = asc, positive = desc
   for i in 0..(report.size - 2) do
     diff = report[i] - report[i + 1]
-    is_safe &&= (diff <=> 0) == sort_direction && diff.abs <= 3
+    is_safe &&= (diff <=> 0) == sort_direction && diff.abs <= ACCEPTABLE_RANGE
     break unless is_safe
   end
 end
