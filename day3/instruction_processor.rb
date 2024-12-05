@@ -1,25 +1,29 @@
 # frozen_string_literal: true
 
 require 'byebug'
+require 'English'
 
 class InstructionProcessor
   VALID_INSTRUCTION_REGEX = /mul\(\d{1,3},\d{1,3}\)/
-  ON_SWITCH_REGEX = /do\(\)/
-  OFF_SWITCH_REGEX = /don't\(\)/
+  ON_OFF_SWITCH_REGEX = /(do\(\)|don't\(\))/
 
-  attr_reader :corrupted_instructions, :switch
+  attr_reader :corrupted_instructions, :switch, :decorrupted_instructions
 
   def initialize(input_file)
     @corrupted_instructions = File.read(input_file)
+    @decorrupted_instructions = []
     @switch = true # Part 2
   end
 
-  def operation_instructions
-    corrupted_instructions.scan(VALID_INSTRUCTION_REGEX)
+  def find_operation_instructions
+    corrupted_instructions.scan(VALID_INSTRUCTION_REGEX) do
+      @decorrupted_instructions << [$LAST_MATCH_INFO, :mul]
+    end
   end
 
   def sum_of_operations
-    operation_instructions.sum { |instruction| execute_operation(instruction) }
+    find_operation_instructions
+    decorrupted_instructions.sum { |instruction, _type| execute_operation(instruction[0]) }
   end
 
   def execute_operation(instruction)
@@ -29,46 +33,28 @@ class InstructionProcessor
 
   ## PART 2
 
-  def sum_active_operations
-    activated_operations.sum { |instruction| execute_operation(instruction) }
-  end
-
-  def on_switches
-    @on_switches ||= corrupted_instructions.enum_for(:scan, ON_SWITCH_REGEX).map { Regexp.last_match.begin(0) }
-  end
-
-  def off_switches
-    @off_switches ||= corrupted_instructions.enum_for(:scan, OFF_SWITCH_REGEX).map { Regexp.last_match.begin(0) }
-  end
-
-  def activated_operations
-    activated_operations = []
-    next_on_switch = on_switches.shift || corrupted_instructions.size # if 0, all switches have been exhausted
-    next_off_switch = off_switches.shift || corrupted_instructions.size # if size, all switches have been exhausted
-    next_operation_index = 0
-    while next_operation_index < operation_instructions.size
-      # byebug
-      operation_location = corrupted_instructions.index(operation_instructions[next_operation_index])
-      next_instruction = [next_on_switch, next_off_switch, operation_location].min
-      if next_instruction == next_on_switch
-        @switch = true
-        next_on_switch = on_switches.shift || corrupted_instructions.size
-      elsif next_instruction == next_off_switch
-        @switch = false
-        next_off_switch = off_switches.shift || corrupted_instructions.size
-      elsif switch
-        activated_operations << operation_instructions[next_operation_index]
-        next_operation_index += 1
+  def sum_with_switches
+    sum = 0
+    corrupted_instructions.scan(ON_OFF_SWITCH_REGEX) { decorrupted_instructions << [$LAST_MATCH_INFO, :on_off_switch] }
+    sort_instructions
+    decorrupted_instructions.each do |match_data, type|
+      case type
+      when :on_off_switch then @switch = match_data[0] == 'do()'
+      when :mul then sum += execute_operation(match_data[0]) if switch
       end
     end
-    activated_operations
+    sum
+  end
+
+  def sort_instructions
+    decorrupted_instructions.sort_by! { |match, _| match.begin(0) }
   end
 end
 
 input_file = 'inputs/day3.txt'
 ip = InstructionProcessor.new(input_file)
 part1_solution = ip.sum_of_operations
-part2_solution = ip.sum_active_operations
+part2_solution = ip.sum_with_switches
 
 puts "PART 1 SOLUTION: #{part1_solution}\n\n"
 puts "PART 2 SOLUTION: #{part2_solution}"

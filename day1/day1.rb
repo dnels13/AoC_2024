@@ -20,7 +20,6 @@ end
 
 puts "PART 1\nTotal distance: #{total_distance}\n\n"
 
-
 ## PART 2
 
 similarity_score = 0
